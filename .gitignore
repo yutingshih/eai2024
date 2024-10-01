@@ -168,3 +168,4 @@ tmp/
 
 # others
 .DS_Store
+*.zip
