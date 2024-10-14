@@ -164,6 +164,7 @@ cython_debug/
 # datasets and temperary files
 data/
 tmp/
+*.zip
 
 # others
 .DS_Store
