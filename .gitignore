@@ -166,6 +166,10 @@ data/
 tmp/
 *.zip
 
+Pytorch model weights
+*.pt
+*.pth
+
 # others
 .DS_Store
 *.zip
