@@ -166,10 +166,24 @@ data/
 tmp/
 *.zip
 
-Pytorch model weights
+# Pytorch model weights
 *.pt
 *.pth
+
+# LaTeX intermediate files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.run.xml
 
 # others
 .DS_Store
 *.zip
+NN6124030*

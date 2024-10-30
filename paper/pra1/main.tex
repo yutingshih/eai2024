@@ -1,0 +1,394 @@
+% Homework Requirements
+% - What are the motivations for this work?
+% - What is the proposed solution?
+% - What is the work’s evaluation of the proposed solution?
+% - What is your analysis of the identified problem, idea, and evaluation?
+% - What are future directions for this research?
+% - What questions are you left with?
+
+\documentclass[12pt]{article}
+
+% Font family
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Serif TC}
+\usepackage{amssymb}
+\usepackage{amsmath}
+
+% Document layout
+\usepackage[margin=2cm, a4paper]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parskip}{12pt}
+\setlength{\parindent}{0pt}
+
+% Citation
+\usepackage{biblatex}
+\addbibresource{./ref.bib}
+
+% Image
+\usepackage{graphicx}
+\graphicspath{{./images/}}
+
+% \title{Paper Review Assignment 1}
+% \author{施宇庭}
+
+\begin{document}
+% \maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{titlepage}
+\begin{center}
+
+\vspace*{1cm}
+\large EAI 2024 Fall \\
+\Large Paper Review Assignment 1 \\
+
+\vspace{2cm}
+% \LARGE \textbf{Xception: Deep Learning with Depthwise Separable Convolutions} \\
+\LARGE \textbf{Review and Analysis of "An Image is Worth 16X16 Words: Transformers for Image Recognition at Scale"} \\
+
+\vfill
+\normalsize
+學生：施宇庭 NN6124030 \\ [0.2cm]
+指導教授：蔡家齊 \ 助理教授 \\ [0.2cm]
+
+\end{center}
+\end{titlepage}
+
+% \pagebreak \tableofcontents \pagebreak
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Motivation}
+
+Transformers have achieved tremendous success in the natural language processing (NLP) field in recent years, thanks to their model design that gives them high scalability. As the dataset scale grows, the model has not yet reached its performance bottleneck.
+
+In the computer vision (CV) field, some research has been trying to combine CNNs with self-attention, while others has completely replaced the convolution layers with self-attention. However, due to the specially designed attention layers not scaling effectively enough, ResNet-like architectures still remained the state-of-the-art (SOTA) for image recognition prior to this paper.
+
+Therefore, this paper aims to address this issue by splitting the image into small patches and input them into the transformer, just like how NLP takes a sequence of words as input. This approach tries to stay as close as possible to the original transformer design, in order to exploit its efficiency and scalability on modern hardware.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Proposed Method}
+
+\subsection{Model Architecture}
+
+The model architecture of Vision transformer (ViT) is shown in Figure \ref{fig:model_arch}.
+
+To get the input of the transformer encoder:
+
+\begin{enumerate}
+    \item Reshape the input image $\mathbf{x} \in \mathbb{R}^{1 \times H \times W \times C}$ to a sequence of 2D patches $\mathbf{x}_p \in \mathbb{R}^{N \times P \times P \times C}$, where $N = HW/P^2$ is the number of patches, and $P$ is the patch size.
+    \item Flatten and project each patch $\mathbf{x}_p^i$ to $\mathbf{x}_p^i\mathbf{E} \in \mathbb{R}^D$, where $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$
+    \item Prepend a learnable class token as $\mathbf{x}_p^0$ to the sequence, and plus the positional embedding $\mathbf{E}_\text{pos} \in \mathbb{R}^{(N+1) \times D}$.
+\end{enumerate}
+
+This forms the patch embeddings (Eq. \ref{eq:1}).
+
+\begin{equation}
+    \mathbf{z_0} = [\mathbf{x}_\text{class}; \mathbf{x}_p^1\mathbf{E}; ...; \mathbf{x}_p^N\mathbf{E}] + \mathbf{E}_\text{pos} \label{eq:1}
+\end{equation}
+
+The transformer encoder consists of alternating layers of multihead self-attention (MSA) and multi-layer perceptron (MLP) blocks as shown in \cite{vaswani_attention_2023}. The difference is that the encoder of this paper applies layer normalization (LN) before every block, and residual connections after every block like the Pre-LN archtecture in \cite{xiong_layer_2020}.
+
+\begin{align}
+    \mathbf{z'}_{l} &= \text{MSA}(\text{LN}(\mathbf{z}_{l-1})) + \mathbf{z}_{l-1}, & l = 1 ... L \\
+    \mathbf{z}_{l} &= \text{MLP}(\text{LN}(\mathbf{z'}_{l})) + \mathbf{z'}_{l}, & l = 1 ... L \\
+    \mathbf{y} &= \text{LN}(\mathbf{z}_{L}^0)
+\end{align}
+
+Note that the MLP contains two layers with GELU activation function.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1.0\linewidth]{images/model_arch.png}
+    \caption{Model architecture of Vision Transformer \cite{dosovitskiy_image_2021}}
+    \label{fig:model_arch}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pre-training and Fine-tuning}
+
+This article pre-trains ViT on large datasets, and then fine-tunes to a relatively smaller downstream tasks.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Experiment and Evaluation}
+
+To demonstrate the effectiveness of the proposed method, this work evaluate the ViT with ResNet-like CNN, and the hybrid.
+
+This paper conducts several experiments to investigate the effectiveness and operation of ViT by:
+
+\begin{enumerate}
+    \item Comparing the performance and computational cost of ViT and SOTA CNNs on popular image classification datasets. (Figure \ref{fig:acc_cmp} and \ref{fig:acc_cmp2})
+    \item Examining the impact of different pre-training dataset sizes. (Figure \ref{fig:data_size1} and \ref{fig:data_size2})
+    \item Assessing the scalability of ViT across different sizes. (Figure \ref{fig:model_vary})
+    \item Analyzing the internal operation of ViT.
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \subsection{Experimental Setup}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Comparison to State of The Art}
+
+To demonstrate the effectiveness of the proposed method, this study compares the accuracy and computational cost (TPUv3-cores-days) of ViT with that of SOTA CNNs on popular image classification datasets. Figure \ref{fig:acc_cmp} shows the results, and we can find that:
+
+\begin{itemize}
+    \item A smaller ViT-L/16 pre-trained on JFT-300M outperforms BiT pre-trained on JFT-300M across all tasks.
+    \item A larger ViT-H/14 exhibits even better performance than ViT-L/16.
+    \item ViTs require fewer computational resources for pre-training compared to other SOTA CNNs.
+\end{itemize}
+
+However, pre-training efficiency is influenced not only by the model architecture but also by other factors such as training schedule, optimizer, and weight decay.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{images/acc_cmp1.png}
+    \caption{Comparison with SOTA CNNs on popular image classification benchmarks.}
+    \label{fig:acc_cmp}
+\end{figure}
+
+Figure \ref{fig:acc_cmp2} decomposes the VTAB tasks into their respective groups, and compares to previous SOTA methods on this benchmark. ViT-H/14 outperforms BiT-R152x4, and other methods, on the \textit{Natural} and \textit{Structured} tasks. On the Specialized the performance of the top two models is similar.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{images/acc_cmp2.png}
+    \caption{Breakdown of VTAB performance in \textit{Natural}, \textit{Specialized}, and \textit{Structured} task groups.}
+    \label{fig:acc_cmp2}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Pre-training Data Requirements}
+
+To investigate how crucial is the dataset size of pre-training, this paper further compared the accuracy of ViT and BiT with varying pre-training dataset sizes: ImageNet, ImageNet-21k, and JFT300M. Figure \ref{fig:data_size1} shows the result after fine-tuning to ImageNet, and the results are:
+
+\begin{itemize}
+    \item When pre-trained on small dataset (ImageNet), ViT-Base models are better than ViT-Large models, despite the regularization including weight decay, dropout, and smoothing. And the BiT model outperforms the ViT models.
+    \item When pre-trained on medium-sized dataset (ImageNet-21k), their performances are similar.
+    \item When pre-trained on large dataset (JFT-300M), larger ViT start revealing the benefit.
+\end{itemize}
+
+An additional experiment was performed on random subsets of 9M, 30M, and 90M as well as the full JFT300M dataset. As shown in figure \ref{fig:data_size2}, similar result holds: ResNets perform better with smaller pre-training datasets, while ViT performs better with larger pre-training datasets.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{images/data_size1.png}
+    \caption{Transfer to ImageNet.}
+    \label{fig:data_size1}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{images/data_size2.png}
+    \caption{Linear few-shot evaluation on Ima- geNet versus pre-training size.}
+    \label{fig:data_size2}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Scaling Study}
+
+Observing the transformer performance on JFT-300M with different models allows for an assessment of scalability (performance/compute trade-off). The result is shown in figure \ref{fig:model_vary}.  We can observe that:
+
+\begin{itemize}
+    \item ViT dominate ResNets on the performance/compute trade-off.
+    \item hybrids slightly outperform ViT at small computational budgets, but the difference vanishes for larger models.
+    \item Vision Transformers appear not to saturate within the range tried, motivating future scaling efforts.
+\end{itemize}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{images/model_vary.png}
+    \caption{Performance versus pre-training compute for different architectures: Vision Transformers, ResNets, and hybrids.}
+    \label{fig:model_vary}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \subsection{Inspecting Vision Transformer}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \subsection{Self-Supervision}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Analysis}
+
+\subsection{Pre-LN v.s. Post-LN Transformer}
+
+When reviewing the relevant literature, I noticed that the encoder architecture proposed in this paper differs slightly from the original transformer architecture. The original model architecture of transformer proposed by \cite{vaswani_attention_2023} is shown in figure \ref{fig:model_arch_orig}. Comparing with the figure \ref{fig:model_arch}, we can observe that the relative position of the layer normalization differs. In the original paper, the LN layer comes after the MSA and MLP, while in this paper, the LN layer comes before the MSA and MLP. In this paper, the rationale behind such a design choice is not explicitly discussed. However, a study by \cite{xiong_layer_2020} suggests that in the original paper, the Post-LN approach results in larger gradients near the output layer, leading to instability during training with larger learning rates. Consequently, an additional warm-up stage is required, introducing more variability in experiments (unlike the training procedure of CNNs). In contrast, employing Pre-LN results in smaller gradients, making it more suitable for deep neural networks and eliminating the need for a warm-up stage.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/model_arch_orig.png}
+    \caption{The original model architecture of transformer proposed by \cite{vaswani_attention_2023}}
+    \label{fig:model_arch_orig}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Workload Analysis}
+
+When deploying the ViT model in a real-world scenario, or designing an optimized hardware/software co-design system, it is essential to understand the workload characteristics of the model. The workload characteristics of the ViT model can be analyzed from the following aspects:
+
+\begin{itemize}
+    \item \textbf{Computation Requirements:} The computational requirements for each layer, including the calculation process for each operator, with metrics expressed in \textbf{FLOPs}.
+    \item \textbf{Memory Requirements:} The memory requirements for each layer, assuming that inputs and outputs of all operations are fetched from and stored to DRAM, with metrics expressed in \textbf{Bytes}.
+\end{itemize}
+
+There are three variants of the ViT model: ViT-Base, ViT-Large, and ViT-Huge. Their detailed configurations are shown in Table \ref{tab:vit-variants}.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{cccccc}
+    \hline
+    \textbf{Model} & \textbf{Layers} & \textbf{Hidden size} & \textbf{MLP size} & \textbf{Heads} & \textbf{Params} \\
+    \hline
+    ViT-Base  & 12 & 768  & 3072 & 12 & 86M  \\
+    ViT-Large & 24 & 1024 & 4096 & 16 & 307M \\
+    ViT-Huge  & 32 & 1280 & 5120 & 16 & 632M \\
+    \hline
+    \end{tabular}
+    \caption{ViT model variants \cite{dosovitskiy_image_2021}}
+    \label{tab:vit-variants}
+\end{table}
+
+\begin{table}[h]
+    \centering
+    \renewcommand{\arraystretch}{1.4} % Adjust row height factor as needed
+    \begin{tabular}{lc}
+    \hline
+    \textbf{Hyperparameter} & \textbf{Value} \\
+    \hline
+    $b$: batch size & $1$ \\
+    $N$: sequence length (number of patches) & $\frac{224}{16} \times \frac{224}{16} = 196$ \\
+    $d$: embedding size, hidden size & $3 \times 16 \times 16 = 768$ \\
+    $V$: number of output classes & $1000$ \\
+    $a$: number of heads in MSA block & $12$ \\
+    $l$: number of encoder layers & $12$ \\
+    \hline
+    \end{tabular}
+    \caption{Hyperparameters for ViT-B.}
+    \label{tab:hyperparameters}
+\end{table}
+
+The following we will take ViT-Base on ImageNet-1k classification task as an example. The hyperparameters are shown in Table \ref{tab:hyperparameters}. Assume that the input image size is $224 \times 224$ pixels, and the patch size is $16 \times 16$ pixels. The number of patches is $196$, and the embedding size is $768$. The number of layers is $12$, and the number of heads is $12$. The number of classes is $1000$. The computation and memory requirements for each layer can be calculated based on the model architecture and hyperparameters.
+
+\subsubsection{Multi-head Self-attention (MSA) Block}
+
+The MSA block in ViT consists of three main components: Query, Key, and Value projections, scaled dot-product attention, and output projection. The input is normalized by LayerNorm, and the output follows a residual connection. The architecture diagram is depicted in Figure \ref{fig:msa_architecture}. The computational and memory access requirements for each layer in the MSA block are shown in Table \ref{tab:msa_analysis}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{images/msa.png}
+    \caption{MSA block in ViT.}
+    \label{fig:msa_architecture}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{images/mlp.png}
+    \caption{MLP block in ViT.}
+    \label{fig:mlp_architecture}
+\end{figure}
+
+\subsubsection{Multi-layer Perceptron (MLP) Block}
+
+The MLP block in ViT consists of two fully connected layers with GELU activation function. The input is normalized by LayerNorm, and the output follows a residual connection. The architecture diagram is depicted in Figure \ref{fig:mlp_architecture}. The computational and memory access requirements for each layer in the MLP block are shown in Table \ref{tab:mlp_analysis}.
+
+\begin{table}
+    \centering
+    \renewcommand{\arraystretch}{1.7} % Adjust row height factor as needed
+    \begin{tabular}{lccc}
+    \hline
+    \textbf{Layer Name} & \textbf{FLOPs} & \textbf{Memory Access (Bytes)} & \textbf{Operational Intensity} \\
+    \hline
+    LN         & $6Nbd$   & $8Nbd$                & $\frac{3}{4}$              \\
+    Q proj     & $2Nbd^2$ & $8Nbd + 4d^2$         & $\frac{Nbd}{4Nb + 2d}$     \\
+    K proj     & $2Nbd^2$ & $8Nbd + 4d^2$         & $\frac{Nbd}{4Nb + 2d}$     \\
+    V proj     & $2Nbd^2$ & $8Nbd + 4d^2$         & $\frac{Nbd}{4Nb + 2d}$     \\
+    QK matmul  & $2N^2bd$ & $48Nbd + 4N^2ba$      & $\frac{Nbd}{4bd + 2Nba}$   \\
+    scaling    & $N^2b$   & $8N^2ba$              & $\frac{1}{8a}$             \\
+    softmax    & $3N^2b$  & $8N^2ba$              & $\frac{3}{8a}$             \\
+    SV matmul  & $2N^2bd$ & $4N^2ba + 8Nbd$       & $\frac{Nbd}{2.5Nba + 4bd}$ \\
+    O proj     & $2Nbd^2$ & $4d^2 + 8Nbd$         & $\frac{Nd}{2d + 4.5N}$     \\
+    Add        & $Nbd$    & $12Nbd$               & $\frac{1}{12}$             \\
+    \hline
+    \end{tabular}
+    \caption{Computational and memory access requirements for each layer in MSA block.}
+    \label{tab:msa_analysis}
+\end{table}
+
+\begin{table}
+    \centering
+    \renewcommand{\arraystretch}{1.7} % Adjust row height factor as needed
+    \begin{tabular}{lccc}
+    \hline
+    \textbf{Layer Name} & \textbf{FLOPs} & \textbf{Memory Access (Bytes)} & \textbf{Operational Intensity} \\
+    \hline
+    LN         & $6Nbd$   & $8Nbd$        & $\frac{3}{4}$           \\
+    FC1        & $4Nbd^2$ & $20Nbd + 16d^2$ & $\frac{Nbd}{5Nb + 4d}$    \\
+    GELU       & $32Nbd$  & $32Nbd$       & $\frac{1}{8}$           \\
+    FC2        & $4Nbd^2$ & $20Nbd + 16d^2$ & $\frac{4Nbd}{21Nb + 16d}$ \\
+    Add        & $Nbd$    & $12Nbd$       & $\frac{1}{12}$          \\
+    \hline
+    \end{tabular}
+    \caption{Computation and memory access requirements for each layer in MLP block.}
+    \label{tab:mlp_analysis}
+\end{table}
+
+\subsubsection{Classification Head}
+
+The classification head in ViT consists of a fully connected layer followed by a softmax function in training stage and argmax in inference stage. The computational and memory access requirements for the classification head are shown in Table \ref{tab:classification_head_analysis}.
+
+\begin{table}
+    \centering
+    \renewcommand{\arraystretch}{1.7} % Adjust row height factor as needed
+    \begin{tabular}{lccc}
+    \hline
+    \textbf{Layer Name} & \textbf{FLOPs} & \textbf{Memory Access (Bytes)} & \textbf{Operational Intensity} \\
+    \hline
+    Linear & $2bdV$ & $4bd + 4dV + 4bV$ & $\frac{bdV}{2bd + 2dV + 2bV}$ \\
+    \hline
+    \end{tabular}
+    \caption{Computation and Memory Access for Linear Layer}
+    \label{tab:classification_head_analysis}
+\end{table}
+
+\subsubsection{Conclusion}
+
+The computational and memory access requirements, as well as the operational intensity for each layer in the ViT model, can be calculated based on the model architecture and hyperparameters.
+
+Using the roofline model allows for further analysis of ViT's performance bottlenecks to determine if each layer is \textbf{compute-bound} or \textbf{memory-bound}, which can guide performance optimization and deployment efforts.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Future Work}
+
+The authors proposed some future work for this research including:
+
+\begin{enumerate}
+    \item Applying to other computer vision tasks (e.g. detection, segmentation)
+    \item Large-scale self-supervised pre-training
+    \item Further scaling on ViT
+\end{enumerate}
+
+
+In addition to the directions proposed by the authors, I believe there are the following directions for future development:
+
+Transformer models have a vast number of parameters and computations, typically trained and inferred on servers. However, even on servers, there is a demand for model compression to save computation costs and increase throughput \cite{zhao_atom_2023}. ViT models used in the field of computer vision are no exception. However, traditional quantization and pruning techniques for CNNs may not be directly applicable to transformer model computations. Therefore, developing quantization algorithms suitable for ViT would be a promising research direction. For example, there is already research on post-training quantization (PTQ) for ViT \cite{liu_post-training_2021}. However, quantization-aware training (QAT) for ViT remains an unresolved issue due to training oscillations causing instability during the training process.
+
+This paper proposes a redesign of the algorithm to enable transformers to efficiently perform computer vision tasks using existing hardware (TPUv3). It also points out that previous papers have not performed well due to the under-utilization of hardware capabilities caused by specific attention patterns. Furthermore, experimental results indicate that existing large datasets have not reached the limit of Vision Transformer and still have the potential for further scaling up. Therefore, developing a software/hardware co-design system for ViT is also a research direction worth exploring.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \pagebreak
+\printbibliography
+\end{document}
