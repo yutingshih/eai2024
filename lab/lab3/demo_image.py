@@ -14,9 +14,10 @@ from estimation.scripts.renderers import draw
 from tf_netbuilder_ext.extensions import register_tf_netbuilder_extensions
 
 # ↓ Fill your own ↓ #
+num = 1
 model_weights_path = "./model_weights/openpose"
-input_image = "./images/1.jpg"
-output_image = "output.png"
+input_image = f"./images/{num}.jpg"
+output_image = f"output{num}.png"
 # ↑ Fill your own ↑ #
 
 register_tf_netbuilder_extensions()
@@ -24,7 +25,7 @@ register_tf_netbuilder_extensions()
 module = importlib.import_module('model')
 create_model = getattr(module, "create_openpose")
 model = create_model()
-model.load_weights(model_weights_path) 
+model.load_weights(model_weights_path)
 
 img = cv2.imread(input_image)  # B,G,R order
 input_img = img[np.newaxis, :, :, [2, 1, 0]]
@@ -41,7 +42,7 @@ connections = get_connections(cfg, coordinates, pafs)
 x = time.time()
 skeletons = estimate(cfg, connections)
 y = time.time()
-print(y-x) # Inference time
+print(f'inference time: {y - x} s') # Inference time
 # ↑ You can analsis the time of your algo. ↑ #
 
 output = draw(cfg, img, coordinates, skeletons, resize_fac=8)
