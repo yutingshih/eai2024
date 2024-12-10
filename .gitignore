@@ -162,6 +162,8 @@ cython_debug/
 #.idea/
 
 # datasets and temperary files
+datasets/
+dataset/
 data/
 tmp/
 *.zip
